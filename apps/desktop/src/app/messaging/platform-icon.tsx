@@ -15,8 +15,9 @@ import {
 import type { ComponentPropsWithoutRef, ComponentType, SVGProps } from 'react'
 import { forwardRef, memo } from 'react'
 
+import feishuLogo from '@/assets/feishu.png'
 import { AvatarChip } from '@/components/ui/avatar-chip'
-import { Globe, Link as LinkIcon, MessageSquareText } from '@/lib/icons'
+import { Link as LinkIcon, MessageCode, MessageSquareText } from '@/lib/icons'
 
 // ---------------------------------------------------------------------------
 // Photon brand icon — three diagonal rounded bars (the Photon logo mark).
@@ -66,7 +67,9 @@ const PLATFORM_ICONS: Record<string, PlatformIconSpec> = {
   email: { Icon: SiGmail, color: '#EA4335', kind: 'brand' },
   sms: { Icon: MessageSquareText, color: '#F43F5E', kind: 'generic' },
   webhook: { Icon: LinkIcon, color: '#71717A', kind: 'generic' },
-  api_server: { Icon: Globe, color: '#64748B', kind: 'generic' },
+  // A globe reads as 'the web', not 'an endpoint': the API channel is programmatic
+  // access, so a code-message glyph says it in one glance at 14px.
+  api_server: { Icon: MessageCode, color: '#64748B', kind: 'generic' },
   weixin: { Icon: SiWechat, color: '#07C160', kind: 'brand' },
   qqbot: { Icon: SiQq, color: '#EB1923', kind: 'brand' },
   yuanbao: { Icon: SiBilibili, color: '#FB7299', kind: 'brand' }
@@ -90,12 +93,18 @@ export const PlatformAvatar = memo(
     return (
       <AvatarChip
         aria-hidden="true"
-        brand={PLATFORM_ICONS[platformId]}
+        brand={platformId === 'feishu' ? { color: '#3370FF' } : PLATFORM_ICONS[platformId]}
         className={className}
         name={platformName}
         ref={ref}
         {...rest}
-      />
+      >
+        {platformId === 'feishu' ? (
+          // Feishu/Lark pulled its mark from Simple Icons at the brand owner's
+          // request, so we bundle the official app icon instead of a monogram.
+          <img alt="" className="size-[78%] rounded-[2px] object-contain" src={feishuLogo} />
+        ) : undefined}
+      </AvatarChip>
     )
   })
 )

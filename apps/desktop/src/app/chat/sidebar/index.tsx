@@ -27,7 +27,7 @@ import { type SessionInfo, type SessionSearchResult } from '@/hermes'
 import { useI18n } from '@/i18n'
 import { comboTokens } from '@/lib/keybinds/combo'
 import { sessionMatchesSearch } from '@/lib/session-search'
-import { normalizeSessionSource, sessionSourceLabel } from '@/lib/session-source'
+import { normalizeSessionSource, sessionSourceLabel, SOURCE_LABELS } from '@/lib/session-source'
 import { cn } from '@/lib/utils'
 import { $connectionsRegistry } from '@/store/connection-registry-state'
 import { $activeConnectionId } from '@/store/connections'
@@ -73,7 +73,9 @@ import {
   setSidebarWorkspaceParentOrderIds,
   SIDEBAR_SESSIONS_PAGE_SIZE,
   toggleSidebarMessagingOpen,
-  unpinSession
+  unpinSession,
+  $railScope,
+  setRailScope
 } from '@/store/layout'
 import { notifyError } from '@/store/notifications'
 import {
@@ -1554,6 +1556,38 @@ export function ChatSidebar({
       })
     )
 
+  // Icon-rail: the sidebar paints as a ~48px icon strip (labels on hover) and
+  // the list content exists only in the expanded state. State lives in the
+  // layout store rather than the shadcn provider so ⌘B keeps meaning "hide the
+  // column" while this toggle only changes how the column paints itself.
+  const railScope = useStore($railScope)
+  const platformScope = railScope.startsWith('platform:') ? railScope.slice('platform:'.length) : null
+  // The rail is always on now: icons live in their own 48px column and the
+  // list column beside it never disappears. Kept as a constant so the row
+  // styling below stays a single, readable switch.
+  const railCollapsed = true
+
+  // Platforms that actually carry conversations, busiest first — the icon rail
+  // shows one glyph per platform and filters the list column by that source.
+  // The fixed order keeps every channel the user has wired visible even when
+  // it currently holds no sessions.
+  const railPlatforms = useMemo(() => {
+    const declared = ['api_server', 'webhook', 'telegram', 'whatsapp', 'feishu', 'weixin', 'discord']
+    const seen = new Set([...declared, ...Object.keys(messagingPlatformTotals)])
+
+    return [...seen]
+      .map(id => [id, messagingPlatformTotals[id] ?? 0] as [string, number])
+      .sort((a, b) => b[1] - a[1])
+  }, [messagingPlatformTotals])
+
+  const platformSessions = useMemo(
+    () =>
+      platformScope
+        ? messagingSessions.filter(session => normalizeSessionSource(String(session.source)) === platformScope)
+        : [],
+    [messagingSessions, platformScope]
+  )
+
   return (
     <Sidebar
       className={cn(
@@ -1565,13 +1599,30 @@ export function ChatSidebar({
         'border-(--sidebar-edge-border) bg-(--ui-sidebar-surface-background) opacity-100'
       )}
       collapsible="none"
+      data-rail={railCollapsed ? 'true' : 'false'}
+      style={{ '--sidebar-width': '285px' } as React.CSSProperties}
       data-tip-region=""
       data-tour="sessions-sidebar"
     >
-      <SidebarContent className="gap-0 overflow-hidden bg-transparent px-2.5">
-        <SidebarGroup className="shrink-0 p-0 pb-2 pt-[calc(var(--titlebar-height)+0.375rem)]">
+      <SidebarContent className="grid h-full min-h-0 grid-cols-[48px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] gap-0 overflow-hidden bg-transparent px-0">
+        <SidebarGroup className="col-start-1 row-start-1 flex min-h-0 flex-col overflow-y-auto p-0 pb-2 pt-[calc(var(--titlebar-height)+0.375rem)]">
           <SidebarGroupContent>
-            <SidebarMenu className="gap-px">
+            <SidebarMenu className="gap-px px-1.5">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  aria-label="会话"
+                  className={cn(
+                    'flex h-8 w-full justify-center gap-0 rounded-md border border-transparent px-0 [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background)',
+                    railScope === 'sessions' &&
+                      'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background)'
+                  )}
+                  onClick={() => setRailScope('sessions')}
+                  tooltip={{ children: '会话', hidden: false }}
+                  type="button"
+                >
+                  <Codicon className="size-4 shrink-0 text-[color-mix(in_srgb,currentColor_72%,transparent)]" name="comment-discussion" />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               {navItems.map(item => {
                 const isInteractive = Boolean(item.action) || Boolean(item.route)
 
@@ -1597,6 +1648,7 @@ export function ChatSidebar({
                       // top rows. Same carve-out as USER_BUBBLE_BASE_CLASS in
                       // thread.tsx.
                       'flex h-7 w-full justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[0.8125rem] font-medium text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none',
+                      railCollapsed && 'h-8 justify-center gap-0 px-0',
                       active &&
                         'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-foreground shadow-none hover:border-(--ui-stroke-tertiary)!',
                       !isInteractive &&
@@ -1612,6 +1664,17 @@ export function ChatSidebar({
                       // change which profile that is.
                       if (isNewSession) {
                         $newChatProfile.set(null)
+                      }
+
+                      // Rail icons also choose what the list column shows:
+                      // sessions by default, the cron list for 定时任务, and
+                      // each messaging platform's own list for its glyph.
+                      if (item.id === 'cron') {
+                        setRailScope('cron')
+                      } else if (item.id === 'messaging') {
+                        setRailScope('messaging')
+                      } else if (item.id !== 'new-session') {
+                        setRailScope('sessions')
                       }
 
                       if (item.keybindActionId) {
@@ -1644,9 +1707,13 @@ export function ChatSidebar({
                         ? {
                             children: (
                               <TipKeybindLabel actionId={item.keybindActionId} text={s.nav[item.id] ?? item.label} />
-                            )
+                            ),
+                            // shadcn hides the tip unless the provider reports
+                            // `collapsed`; the rail runs on our own atom while the
+                            // provider stays expanded, so say it explicitly.
+                            hidden: !railCollapsed
                           }
-                        : (s.nav[item.id] ?? item.label)
+                        : { children: s.nav[item.id] ?? item.label, hidden: !railCollapsed }
                     }
                     type="button"
                   >
@@ -1660,12 +1727,12 @@ export function ChatSidebar({
                         `flex-1` looked like it was for.
                         Its own `sidebar-nav-` namespace: the overlay nav owns
                         `nav-<id>`, and both are on screen with Settings open. */}
-                    <span className="min-w-0 truncate" data-tip-arrow-only="" data-tour={`sidebar-nav-${item.id}`}>
+                    <span className={cn('min-w-0 truncate', railCollapsed && 'hidden')} data-tip-arrow-only="" data-tour={`sidebar-nav-${item.id}`}>
                       {s.nav[item.id] ?? item.label}
                     </span>
                     {isNewSession && (
                       <KbdGroup
-                        className={cn('ml-auto opacity-55', newSessionKbdFlash && 'opacity-100!')}
+                        className={cn('ml-auto opacity-55', railCollapsed && 'hidden', newSessionKbdFlash && 'opacity-100!')}
                         keys={newSessionKbd}
                         size="sm"
                       />
@@ -1700,13 +1767,79 @@ export function ChatSidebar({
                   </SidebarMenuItem>
                 )
               })}
+
+              {/* Channel rail: one glyph per messaging platform; clicking one
+                  filters the list column down to that platform's sessions. */}
+              {railPlatforms.length > 0 && (
+                <>
+                  <SidebarMenuItem aria-hidden>
+                    <div className="mx-1 my-1 h-px bg-(--ui-stroke-tertiary)" />
+                  </SidebarMenuItem>
+                  {railPlatforms.map(([platform, count]) => (
+                    <SidebarMenuItem key={`rail-platform-${platform}`}>
+                      <SidebarMenuButton
+                        aria-label={SOURCE_LABELS[platform] ?? platform}
+                        className={cn(
+                          'flex h-8 w-full justify-center gap-0 rounded-md border border-transparent px-0 [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background)',
+                          platformScope === platform &&
+                            'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background)'
+                        )}
+                        onClick={() => setRailScope(`platform:${platform}`)}
+                        tooltip={{
+                          children: `${SOURCE_LABELS[platform] ?? platform}${count ? ` · ${count}` : ''}`,
+                          hidden: false
+                        }}
+                        type="button"
+                      >
+                        <PlatformAvatar
+                          className="size-4 rounded-[4px] text-[0.5625rem] [&_svg]:size-3"
+                          platformId={platform}
+                          platformName={SOURCE_LABELS[platform] ?? platform}
+                        />
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarStorageCorruptNotice />
+        <div className="col-start-2 row-start-1 z-10">
+          <SidebarStorageCorruptNotice />
+        </div>
 
-        {showSessionSections && (
+        {/* The list column: sessions by default, cron or one platform's
+            conversations when the rail selects them. Always visible — the
+            rail never takes it away. */}
+        <div className="col-start-2 row-start-1 flex min-h-0 min-w-0 flex-col overflow-hidden">
+
+        {platformScope && (
+          <div className="flex min-h-0 flex-1 flex-col px-2 pt-1">
+            <SidebarSessionsSection
+              activeSessionId={activeSidebarSessionId}
+              contentClassName="flex min-h-0 flex-1 flex-col gap-px pb-1.75"
+              emptyState={null}
+              label={SOURCE_LABELS[platformScope] ?? platformScope}
+              onArchiveSession={onArchiveSession}
+              onDeleteSession={onDeleteSession}
+              onResumeSession={onResumeSession}
+              onToggle={() => undefined}
+              onTogglePin={pinSession}
+              onToggleUnread={toggleUnread}
+              open
+              pinned={false}
+              rootClassName="min-h-0 flex-1 overflow-hidden p-0"
+              sessions={platformSessions}
+              showProfileTags={false}
+            />
+          </div>
+        )}
+
+        {!platformScope && (
+          <>
+
+        {showSessionSections && railScope !== 'cron' && (
           <div className="shrink-0 px-2 pb-1 pt-1">
             <SearchField
               aria-label={s.searchAria}
@@ -1718,7 +1851,7 @@ export function ChatSidebar({
           </div>
         )}
 
-        {showSessionSections && (
+        {showSessionSections && railScope !== 'cron' && (
           <div
             className={cn('flex min-h-0 flex-1 flex-col pb-1.75', SCROLL_Y, SCROLL_GUTTER)}
             data-sessions-mode={sessionsMode}
@@ -1980,9 +2113,7 @@ export function ChatSidebar({
               />
             )}
 
-            {!trimmedQuery &&
-              !worktreeGroupingActive &&
-              messagingGroups.map(group => {
+            {!trimmedQuery && !worktreeGroupingActive && railScope === 'messaging' && messagingGroups.map(group => {
                 const visible = messagingVisible[group.sourceId] ?? NON_SESSION_INITIAL_ROWS
                 const shownSessions = group.sessions.slice(0, visible)
                 // More to show if rows are hidden behind the cap, or the backend
@@ -2038,7 +2169,7 @@ export function ChatSidebar({
                 )
               })}
 
-            {!trimmedQuery && !worktreeGroupingActive && showsAdvancedChrome && cronJobs.length > 0 && (
+            {!trimmedQuery && !worktreeGroupingActive && railScope === 'cron' && cronJobs.length > 0 && (
               <SidebarCronJobsSection
                 jobs={cronJobs}
                 label={s.cronJobs}
@@ -2046,18 +2177,21 @@ export function ChatSidebar({
                 onOpenRun={onResumeSession}
                 onToggle={() => setSidebarCronOpen(!cronOpen)}
                 onTriggerJob={onTriggerCronJob}
-                open={cronOpen}
+                open
               />
             )}
           </div>
         )}
 
         {!showSessionSections && <SidebarBlankState onNewProject={openProjectCreate} />}
+          </>
+        )}
+        </div>
 
         {/* Off, the statusbar's profile dropdown (beside the gateway switcher)
             takes over — the rail is a duplicate door for bot-only setups. */}
         {profileRailVisible && (
-          <div className="shrink-0 px-0.5 pb-1 pt-0.5">
+          <div className="col-span-2 row-start-2 shrink-0 border-t border-(--ui-stroke-tertiary) px-0.5 pb-1 pt-0.5">
             <ProfileRail />
           </div>
         )}

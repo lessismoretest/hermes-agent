@@ -91,6 +91,29 @@ export const $sidebarOpen: ReadableAtom<boolean> = computed(
   states => states[CHAT_SIDEBAR_PANE_ID]?.open ?? true
 )
 
+/** Which list the middle column shows: 'sessions' (default), 'cron', or
+ *  'platform:<source>' for one messaging channel. Persisted per profile. */
+export const $railScope = persistentAtom<string>('hermes.layout.railScope', 'sessions', {
+  decode: raw => raw || 'sessions',
+  encode: value => value
+})
+
+export function setRailScope(scope: string) {
+  $railScope.set(scope)
+}
+
+/** Icon rail + list column. */
+export const SIDEBAR_RAIL_WIDTH = 48
+export const SIDEBAR_LIST_WIDTH = 237
+export const SIDEBAR_TOTAL_WIDTH = SIDEBAR_RAIL_WIDTH + SIDEBAR_LIST_WIDTH
+
+/** The layout tree's own id for the sessions pane (the column that hosts this
+ *  sidebar) — width overrides key off it, not off CHAT_SIDEBAR_PANE_ID. */
+const SIDEBAR_TREE_PANE_ID = 'sessions'
+
+// Keep the pane wide enough for rail + list on boot.
+if (typeof window !== 'undefined') setPaneWidthOverride(SIDEBAR_TREE_PANE_ID, SIDEBAR_TOTAL_WIDTH)
+
 // The file tree's own toggle (⌘J), which doubles as the RIGHT side's collapse.
 // Simple mode rests it closed without touching the pane record; ⌘J still opens
 // it for the session.

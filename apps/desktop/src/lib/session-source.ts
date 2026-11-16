@@ -1,6 +1,6 @@
 import { normalize } from '@/lib/text'
 
-const SOURCE_LABELS: Record<string, string> = {
+export const SOURCE_LABELS: Record<string, string> = {
   acp: 'ACP',
   api_server: 'API',
   bluebubbles: 'iMessage',
@@ -9,6 +9,7 @@ const SOURCE_LABELS: Record<string, string> = {
   desktop: 'Desktop',
   discord: 'Discord',
   email: 'Email',
+  feishu: 'Feishu',
   gateway: 'Gateway',
   kanban: 'Kanban',
   local: 'Local',
