@@ -1,0 +1,93 @@
+name: default
+description: MyHermes 默认外观（气泡配色与消息标记；头像位留空，由用户自备）
+customCSS: |
+  /* ── 用户气泡用主题色（跟随当前主题的 primary / accent） ── */
+  [data-slot="aui_user-message-root"] .composer-human-message {
+    background: var(--dt-primary) !important;
+    border-color: color-mix(in srgb, var(--dt-primary) 70%, white) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+  /* 正文常被 markdown/prose 规则另行着色：同类选择器叠两次提权，再补 text-fill 兜底 */
+  [data-slot="aui_user-message-root"] .composer-human-message.composer-human-message,
+  [data-slot="aui_user-message-root"] .composer-human-message.composer-human-message *:not(svg):not(svg *) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+  [data-slot="aui_user-message-root"] .composer-human-message *:not(svg):not(svg *) {
+    border-color: color-mix(in srgb, var(--dt-primary-foreground) 25%, transparent) !important;
+  }
+  /* 链接在白字气泡里靠下划线区分，不用主题色（会糊成一片） */
+  [data-slot="aui_user-message-root"] .composer-human-message a {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    text-decoration: underline !important;
+    text-underline-offset: 2px;
+  }
+  [data-slot="aui_user-message-root"] .composer-human-message::before {
+    background: none !important;
+  }
+
+  @media (max-width:700px){
+    [data-slot="aui_assistant-message-root"][data-role="assistant"]{padding-left:0}
+    [data-slot="aui_user-message-root"][data-role="user"]{padding-right:0}
+    [data-slot="aui_assistant-message-root"][data-role="assistant"]::before,
+    [data-slot="aui_user-message-root"][data-role="user"]::after{display:none}
+  }
+
+  /* ── 语义色板：<span title="risk|warn|ok|key|dim|hi">…</span> ──
+     渲染器会剥掉 style / class，但保留 title；故用 title 值当语义开关。
+     ins / del 兜底给 markdown 原生语法用。 */
+  .aui-md span[title="risk"],.aui-md span[title="风险"],
+  .aui-md del{
+    color:#c0272d !important;text-decoration:none !important;font-weight:600;
+  }
+  .aui-md span[title="warn"],.aui-md span[title="注意"]{
+    color:#96560a !important;font-weight:600;
+  }
+  .aui-md span[title="ok"],.aui-md span[title="通过"],
+  .aui-md ins{
+    color:#146c44 !important;text-decoration:none !important;font-weight:600;
+  }
+  .aui-md span[title="key"],.aui-md span[title="关键"]{
+    color:#1b3fd0 !important;font-weight:600;
+  }
+  .aui-md span[title="dim"],.aui-md span[title="次要"]{
+    color:#6d6d6d !important;
+  }
+  .aui-md span[title="hi"],.aui-md span[title="高亮"]{
+    background:#fff0a6 !important;color:#57420a !important;font-weight:600;
+    padding:0 .2em;border-radius:.2em;box-decoration-break:clone;
+  }
+  /* 深色覆盖走 html.dark —— app 自己的模式开关（themes/context.tsx 里
+     root.classList.toggle('dark') + root.dataset.hermesMode），
+     不用 prefers-color-scheme：app 模式与系统外观可以不一致。 */
+  html.dark .aui-md span[title="risk"],html.dark .aui-md span[title="风险"],html.dark .aui-md del{color:#ff7b72 !important}
+  html.dark .aui-md span[title="warn"],html.dark .aui-md span[title="注意"]{color:#ffb454 !important}
+  html.dark .aui-md span[title="ok"],html.dark .aui-md span[title="通过"],html.dark .aui-md ins{color:#4ade80 !important}
+  html.dark .aui-md span[title="key"],html.dark .aui-md span[title="关键"]{color:#7cb0ff !important}
+  html.dark .aui-md span[title="dim"],html.dark .aui-md span[title="次要"]{color:#a3a3a3 !important}
+  html.dark .aui-md span[title="hi"],html.dark .aui-md span[title="高亮"]{
+    background:rgba(255,214,0,.22) !important;color:#ffd666 !important;
+  }
+  /* ── 加粗即强调 ──
+     注意：Streamdown 把 **…** 渲染成 <span data-streamdown="strong">，
+     不是 <strong>。选择器必须用这个属性，否则一条都不命中。
+     <b> 只有手写 HTML 时才会出现，一并兜住。 */
+  .aui-md [data-streamdown="strong"],.aui-md b{
+    color:#0f34a8 !important;-webkit-text-fill-color:#0f34a8 !important;font-weight:700;
+  }
+  html.dark .aui-md [data-streamdown="strong"],html.dark .aui-md b{
+    color:#8fb6ff !important;-webkit-text-fill-color:#8fb6ff !important;
+  }
+  /* 标题里的加粗保持标题本色，不然整行标题变蓝 */
+  .aui-md h1 [data-streamdown="strong"],.aui-md h2 [data-streamdown="strong"],
+  .aui-md h3 [data-streamdown="strong"],.aui-md h4 [data-streamdown="strong"],
+  .aui-md h1 b,.aui-md h2 b,.aui-md h3 b,.aui-md h4 b{
+    color:inherit !important;-webkit-text-fill-color:inherit !important;
+  }
+  /* 结论块：正文里的 > 引用块加一条左侧色条，让结论从段落里跳出来 */
+  .aui-md blockquote{
+    border-left:2px solid var(--dt-primary) !important;
+    padding-left:.7em !important;font-style:normal !important;
+  }

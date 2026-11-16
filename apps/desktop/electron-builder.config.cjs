@@ -126,6 +126,12 @@ module.exports = {
   ...(process.platform === 'darwin' ? { afterSign: 'scripts/notarize.mjs' } : {}),
   extraResources: [
     {
+      // Ships the MyHermes look (skin + desktop plugins) with the bundle so a
+      // fresh install opens exactly like the build it came from.
+      from: 'resources/default-profile',
+      to: 'default-profile'
+    },
+    {
       from: 'build/install-stamp.json',
       to: 'install-stamp.json'
     },

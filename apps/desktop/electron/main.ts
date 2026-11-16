@@ -1,5 +1,6 @@
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
 
+import { seedDefaultProfile } from './default-profile-seed'
 import type { GatewayEndpoint } from './local-gateway'
 import { configurePythonGatewayTicketClient, createLocalGatewayDials, createStaleGatewayRestarter, ensureLocalGateway, gatewayOwnerProfile, localGatewayDial, nativeGatewayHttpHeaders, redialLocalGateway, runGatewayEnsure, runGatewayOwnerRestart } from './local-gateway'
 import { closeGatewayTicketBridges, createGatewayTicketResolver } from './local-gateway-python'
@@ -17558,6 +17559,10 @@ app.on('open-url', (event, url) => {
 })
 
 app.whenReady().then(() => {
+  // Ship the look with the build: a fresh install should already carry the
+  // skin and desktop plugins this build was made with (existing files win).
+  void seedDefaultProfile()
+
   if (NVIDIA_DRIVER_MAJOR !== null) {
     rememberLog(nvidiaEglRecovery.startupMessage)
   }
