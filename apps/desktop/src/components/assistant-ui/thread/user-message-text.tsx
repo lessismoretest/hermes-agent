@@ -1,6 +1,8 @@
 import type { FC } from 'react'
 import { Fragment, useMemo } from 'react'
 
+import { FilePathChip } from '@/components/chat/file-path-chip'
+import { splitPathText } from '@/lib/remarks/file-path-links'
 import { DirectiveContent } from '@/components/assistant-ui/directive-text'
 import { referenceRe } from '@/components/assistant-ui/reference-kinds'
 import { cn } from '@/lib/utils'
@@ -169,7 +171,13 @@ const InlineSegmentView: FC<{ text: string }> = ({ text }) => {
           // Pass plain-text bits through DirectiveContent so @file:/@url: chips
           // still render. DirectiveContent already preserves whitespace.
           <Fragment key={`text-${nodeIndex}`}>
-            <DirectiveContent text={node.text} />
+            {splitPathText(node.text).map((segment, segmentIndex) =>
+              segment.kind === 'path' ? (
+                <FilePathChip key={`path-${nodeIndex}-${segmentIndex}`} path={segment.value} />
+              ) : (
+                <DirectiveContent key={`seg-${nodeIndex}-${segmentIndex}`} text={segment.value} />
+              )
+            )}
           </Fragment>
         )
       )}

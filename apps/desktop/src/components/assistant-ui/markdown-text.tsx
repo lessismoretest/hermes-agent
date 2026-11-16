@@ -22,7 +22,9 @@ import {
 import { defaultRemarkPlugins } from 'streamdown'
 
 import { useSessionView } from '@/app/chat/session-view'
+import { linkifyFilePaths, remarkFilePathLinks } from '@/lib/remarks/file-path-links'
 import { ExpandableBlock } from '@/components/chat/expandable-block'
+import { FilePathChip } from '@/components/chat/file-path-chip'
 import { PreviewAttachment } from '@/components/chat/preview-attachment'
 import { chunkByLines, SyntaxHighlighter } from '@/components/chat/shiki-highlighter'
 import { TranscriptVideo } from '@/components/chat/transcript-video'
@@ -112,14 +114,17 @@ function useCodePlugin(): CodePlugin | null {
   return plugin
 }
 
-const REMARK_PLUGINS = [...Object.values(defaultRemarkPlugins), remarkTranscriptDirectives, remarkSoftBreaks]
+const REMARK_PLUGINS = [...Object.values(defaultRemarkPlugins), remarkTranscriptDirectives, remarkSoftBreaks, remarkFilePathLinks]
 
 // Replaces Streamdown's `parseIncompleteMarkdown` (full-text remend per
 // flush) with a tail-bounded repair. Must stay module-scope so the prop
 // identity is stable across renders.
 function preprocessWithTailRepair(text: string): string {
   try {
-    return tailBoundedRemend(preprocessMarkdown(text))
+    // Paths are lifted in the markdown source, not via a remark plugin: the
+    // component's own block parser never runs our plugin list over the final
+    // tree, but a link written into the text always reaches MarkdownLink.
+    return tailBoundedRemend(linkifyFilePaths(preprocessMarkdown(text)))
   } catch {
     return text
   }
@@ -304,6 +309,19 @@ function PreviewOnlyMarkdownLink({ children, className, href }: ComponentProps<'
 }
 
 function MarkdownLink({ children, className, href, ...props }: ComponentProps<'a'>) {
+  // A filesystem path lifted out of prose by remarkFilePathLinks. Its href is a
+  // private scheme so none of the media/preview branches below see it first.
+  if (href?.startsWith('hermes-path:')) {
+    return <FilePathChip path={decodeURIComponent(href.slice('hermes-path:'.length))} />
+  }
+
+  // linkifyFilePaths writes this marker: a https host the sanitizer allows and
+  // this renderer claims, so a filesystem path still reaches the chip instead
+  // of becoming a dead (or worse, external) link.
+  if (href?.startsWith('https://hermes.local/path#')) {
+    return <FilePathChip path={decodeURIComponent(href.slice('https://hermes.local/path#'.length))} />
+  }
+
   const mediaPath = mediaPathFromMarkdownHref(href)
 
   if (mediaPath) {
