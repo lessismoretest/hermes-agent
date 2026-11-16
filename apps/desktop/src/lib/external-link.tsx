@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { hostHas } from '@/lib/host-capabilities'
-import { ArrowUpRight } from '@/lib/icons'
+import { ArrowUpRight, LinkIcon } from '@/lib/icons'
 import { IS_MAC } from '@/lib/keybinds/combo'
 import { $alwaysExternalLinks } from '@/store/external-links'
 
@@ -304,9 +304,9 @@ export function ExternalLinkIcon({ className }: { className?: string }) {
 }
 
 // Brand mark for a known host, sized in `em` so it tracks the surrounding text
-// at any font size. It paints in `currentColor` rather than the brand hex —
-// several brand colors (GitHub's near-black, Unity's white) vanish against one
-// theme or the other.
+// at any font size. Known brands paint their own hex on a white tile; unknown
+// hosts fall back to a chain-link glyph in a neutral tile so every URL keeps
+// the same leading slot.
 //
 // `title=""` is load-bearing: Simple Icons always renders a <title> defaulting
 // to the brand name, which lands in the anchor's textContent and accessible
@@ -318,7 +318,24 @@ export function LinkBrandIcon({ className, href }: { className?: string; href: s
   // SVG inherits the link colour, which is why every icon used to come out the
   // same blue. The white tile behind it is what makes dark logos (GitHub, X)
   // survive a dark background instead of vanishing into it.
-  return Icon ? (
+  // Unknown host: a chain-link glyph in a neutral tile, so every URL keeps the
+  // same leading slot. Without it a link to a small site reads as bare text
+  // next to links that have a logo.
+  if (!Icon) {
+    return (
+      <span
+        aria-hidden
+        className={cn(
+          'mr-1 inline-flex size-[1.05em] items-center justify-center rounded-[3px] bg-[color-mix(in_srgb,currentColor_12%,transparent)] align-[-0.2em]',
+          className,
+        )}
+      >
+        <LinkIcon className="size-[0.72em] opacity-70" />
+      </span>
+    )
+  }
+
+  return (
     <span
       aria-hidden
       className={cn(
@@ -328,7 +345,7 @@ export function LinkBrandIcon({ className, href }: { className?: string; href: s
     >
       <Icon color="default" className="size-[0.8em]" title="" />
     </span>
-  ) : null
+  )
 }
 
 export function ExternalLink({
