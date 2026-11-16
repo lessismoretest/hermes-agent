@@ -17,7 +17,7 @@ import { forwardRef, memo } from 'react'
 
 import feishuLogo from '@/assets/feishu.png'
 import { AvatarChip } from '@/components/ui/avatar-chip'
-import { Link as LinkIcon, MessageCode, MessageSquareText } from '@/lib/icons'
+import { Globe, Link as LinkIcon, MessageSquareText } from '@/lib/icons'
 
 // ---------------------------------------------------------------------------
 // Photon brand icon — three diagonal rounded bars (the Photon logo mark).
@@ -69,7 +69,7 @@ const PLATFORM_ICONS: Record<string, PlatformIconSpec> = {
   webhook: { Icon: LinkIcon, color: '#71717A', kind: 'generic' },
   // A globe reads as 'the web', not 'an endpoint': the API channel is programmatic
   // access, so a code-message glyph says it in one glance at 14px.
-  api_server: { Icon: MessageCode, color: '#64748B', kind: 'generic' },
+  api_server: { Icon: Globe, color: '#64748B', kind: 'generic' },
   weixin: { Icon: SiWechat, color: '#07C160', kind: 'brand' },
   qqbot: { Icon: SiQq, color: '#EB1923', kind: 'brand' },
   yuanbao: { Icon: SiBilibili, color: '#FB7299', kind: 'brand' }
