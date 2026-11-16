@@ -1837,7 +1837,7 @@ export function ChatSidebar({
           <>
 
         {showSessionSections && railScope !== 'cron' && (
-          <div className="shrink-0 px-2 pb-1 pt-1">
+          <div className="shrink-0 px-2 pb-1">
             <SearchField
               aria-label={s.searchAria}
               inputRef={searchInputRef}
@@ -1845,6 +1845,33 @@ export function ChatSidebar({
               placeholder={s.searchPlaceholder}
               value={searchQuery}
             />
+          </div>
+        )}
+
+        {/* 新建会话：和图标栏第二个图标同一个动作，横向放在搜索框下方。 */}
+        {showSessionSections && railScope !== 'cron' && (
+          <div className="shrink-0 px-2 pb-2">
+            <button
+              className="flex h-8 w-full items-center gap-2 rounded-md border border-(--ui-stroke-tertiary) px-2 text-left text-[0.8125rem] font-medium text-(--ui-text-secondary) transition-colors duration-100 ease-out hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none [-webkit-app-region:no-drag]"
+              onClick={() => {
+                const newSessionNav = navItems.find(item => item.id === 'new-session')
+
+                $newChatProfile.set(null)
+
+                if (newSessionNav?.keybindActionId) {
+                  recordAction(newSessionNav.keybindActionId, 'click')
+                }
+
+                if (newSessionNav) {
+                  onNavigate(newSessionNav)
+                }
+              }}
+              type="button"
+            >
+              <Codicon className="size-4 shrink-0 text-[color-mix(in_srgb,currentColor_72%,transparent)]" name="add" />
+              <span className="min-w-0 truncate">{s.nav['new-session']}</span>
+              <KbdGroup className="ml-auto opacity-55" keys={newSessionKbd} size="sm" />
+            </button>
           </div>
         )}
 
