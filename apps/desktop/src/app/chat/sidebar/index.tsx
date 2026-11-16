@@ -1610,14 +1610,14 @@ export function ChatSidebar({
             <SidebarMenu className="gap-px px-1.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  aria-label="会话"
+                  aria-label={s.sessions}
                   className={cn(
                     'flex h-8 w-full justify-center gap-0 rounded-md border border-transparent px-0 [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background)',
                     railScope === 'sessions' &&
                       'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background)'
                   )}
                   onClick={() => setRailScope('sessions')}
-                  tooltip={{ children: '会话', hidden: false }}
+                  tooltip={{ children: s.sessions, hidden: false }}
                   type="button"
                 >
                   <Codicon className="size-4 shrink-0 text-[color-mix(in_srgb,currentColor_72%,transparent)]" name="comment-discussion" />
