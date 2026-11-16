@@ -314,8 +314,20 @@ export function ExternalLinkIcon({ className }: { className?: string }) {
 export function LinkBrandIcon({ className, href }: { className?: string; href: string }) {
   const Icon = resolveBrandIcon(shortHostLabel(href))
 
+  // The glyph keeps its own brand colour (`color="default"`): without it the
+  // SVG inherits the link colour, which is why every icon used to come out the
+  // same blue. The white tile behind it is what makes dark logos (GitHub, X)
+  // survive a dark background instead of vanishing into it.
   return Icon ? (
-    <Icon aria-hidden className={cn('mr-1 inline size-[0.85em] align-[-0.12em] opacity-80', className)} title="" />
+    <span
+      aria-hidden
+      className={cn(
+        'mr-1 inline-flex size-[1.05em] items-center justify-center rounded-[3px] bg-white align-[-0.2em]',
+        className,
+      )}
+    >
+      <Icon color="default" className="size-[0.8em]" title="" />
+    </span>
   ) : null
 }
 

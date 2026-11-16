@@ -143,8 +143,19 @@ export function remarkFilePathLinks() {
  * chip. Code fences and inline code are left untouched.
  */
 export function linkifyFilePaths(markdown: string): string {
-  const linkifyPlain = (chunk: string) =>
-    chunk.replace(PATH_RE, candidate => {
+  // Existing markdown links are shielded first: the preprocess can run more
+  // than once over the same text (streaming block, then settled block), and a
+  // second pass that re-links the label inside `[path](href)` nests one link in
+  // another — the outer one then fails the renderer's URL check and prints as
+  // "[blocked]".
+  const linkifyPlain = (chunk: string) => {
+    const shielded: string[] = []
+    const guarded = chunk.replace(/\[[^\]]*\]\([^)\s]*\)/g, match => {
+      shielded.push(match)
+      return `\u0001${shielded.length - 1}\u0001`
+    })
+
+    const linked = guarded.replace(PATH_RE, candidate => {
       if (!looksLikePath(candidate)) {
         return candidate
       }
@@ -154,6 +165,9 @@ export function linkifyFilePaths(markdown: string): string {
       // MarkdownLink intercepts the host and draws a chip instead.
       return `[${candidate}](https://hermes.local/path#${encodeURIComponent(candidate)})`
     })
+
+    return linked.replace(/\u0001(\d+)\u0001/g, (_, index) => shielded[Number(index)] ?? '')
+  }
 
   return markdown
     .split(/(```[\s\S]*?```)/g)
