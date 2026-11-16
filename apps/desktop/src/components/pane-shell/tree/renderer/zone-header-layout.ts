@@ -41,7 +41,11 @@ export function useZoneHeaderLayout({
   const compactTabs = touchTitlebar && narrow && shown.some(isSessionStripPane)
   // The compact picker needs a full touch row: the titlebar's fit threshold
   // also has to accommodate the drag handle and the separate new-tab target.
-  const tabsBelowControls = topEdge && (compactTabs || sidebarGroup || measuredBelowControls)
+  // Sidebar-only zones used to force the tabs onto their own row. They now
+  // share the titlebar band: the rail's column header leaves exactly that
+  // empty strip beside the collapse button, and a second row only costs
+  // vertical space the list wants.
+  const tabsBelowControls = topEdge && (compactTabs || measuredBelowControls || (sidebarGroup && narrow))
 
   return {
     compactTabs,
