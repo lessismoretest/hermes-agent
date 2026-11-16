@@ -1605,7 +1605,7 @@ export function ChatSidebar({
       data-tour="sessions-sidebar"
     >
       <SidebarContent className="grid h-full min-h-0 grid-cols-[48px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] gap-0 overflow-hidden bg-transparent px-0">
-        <SidebarGroup className="col-start-1 row-start-1 flex min-h-0 flex-col overflow-y-auto border-r border-(--ui-stroke-tertiary) p-0 pb-2 pt-[calc(var(--titlebar-height)+0.375rem)]">
+        <SidebarGroup className="col-start-1 row-start-1 flex min-h-0 flex-col overflow-y-auto border-r border-(--sidebar-edge-border) p-0 pb-2 pt-[calc(var(--titlebar-height)+0.375rem)]">
           <SidebarGroupContent>
             <SidebarMenu className="gap-px px-1.5">
               <SidebarMenuItem>
@@ -1805,14 +1805,11 @@ export function ChatSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <div className="col-start-2 row-start-1 z-10">
-          <SidebarStorageCorruptNotice />
-        </div>
-
         {/* The list column: sessions by default, cron or one platform's
             conversations when the rail selects them. Always visible — the
             rail never takes it away. */}
         <div className="col-start-2 row-start-1 flex min-h-0 min-w-0 flex-col overflow-hidden">
+          <SidebarStorageCorruptNotice />
 
         {platformScope && (
           <div className="flex min-h-0 flex-1 flex-col px-2 pt-1">
