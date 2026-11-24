@@ -1043,9 +1043,13 @@ _DEGENERATE_FINAL_NUDGE = (
 )
 
 # Re-prompt for finish_reason="tool_calls" with empty tool_calls (an interrupt mid-retry can persist it).
+# Some OpenAI-compatible relays report that finish_reason on an ordinary text answer, so the nudge
+# must leave room for "nothing to call here" — otherwise the model invents tool calls to satisfy it.
 _DROPPED_TOOLCALL_NUDGE_CONTENT = (
-    "Your previous turn indicated a tool call but none was included. Do not narrate a plan or "
-    "restate intent — issue the actual tool call now to continue the task."
+    "Your previous turn indicated a tool call but none was included. If the task still needs an "
+    "action, do not narrate a plan or restate intent — issue the actual tool call now. If no tool "
+    "call is needed (for example the user just said hello, or your last message was already the "
+    "complete answer), reply to the user directly with that answer as plain text instead."
 )
 
 # Re-prompt for an empty response after tool calls (#9400); the metadata flag does not

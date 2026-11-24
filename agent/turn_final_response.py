@@ -331,9 +331,14 @@ def finish_text_response(
 
     # Dropped tool-call recovery (seen with Claude via gateways): finish_reason="tool_calls" with empty
     # tool_calls would end the turn unstarted; re-prompt (max 3 CONSECUTIVE stalls).
+    # Only when nothing was actually said: some OpenAI-compatible relays (e.g. magpie's
+    # DeepSeek route) report finish_reason="tool_calls" on a perfectly good text answer
+    # with an empty tool_calls array. Re-prompting there just burns three extra round
+    # trips and spams the transcript with "emit the call" nudges, so deliver the text.
     if (
         finish_reason == "tool_calls"
         and not assistant_message.tool_calls
+        and not final_response
         and getattr(agent, "_dropped_toolcall_retries", 0) < 3
     ):
         agent._dropped_toolcall_retries = getattr(agent, "_dropped_toolcall_retries", 0) + 1
