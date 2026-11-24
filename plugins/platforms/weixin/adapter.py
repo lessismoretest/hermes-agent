@@ -14,6 +14,19 @@ from urllib.parse import quote, urlparse
 logger = logging.getLogger(__name__)
 WEIXIN_COPY_LINE_WIDTH = 120
 
+# 只在 IM 渠道过滤的过程性通知：自我进化回顾、技能补丁这类状态行。
+# 功能照跑、桌面版照常显示，只是不进 IM 对话框。
+_NON_CONVERSATIONAL_NOTICE_RE = re.compile(
+    r"^\s*💾\s*(?:Self-improvement review:|Skill\s+['\"].+?['\"]\s+"
+    r"(?:created|updated|improved|patched))",
+    re.IGNORECASE,
+)
+
+
+def _is_non_conversational_notice(text: str) -> bool:
+    """自我进化/技能补丁状态行——IM 渠道不投递，桌面版不受影响。"""
+    return bool(text and _NON_CONVERSATIONAL_NOTICE_RE.match(text.strip()))
+
 try:
     import aiohttp
 except ImportError:  # pragma: no cover - dependency gate
@@ -1035,6 +1048,9 @@ class WeixinAdapter(OwnAccessPolicyMixin, BasePlatformAdapter):
             raise last_error
 
     async def send(self, chat_id: str, content: str, reply_to: Optional[str] = None, metadata: Optional[dict[str, Any]] = None) -> SendResult:
+        if _is_non_conversational_notice(content):
+            logger.debug("[weixin] suppressed non-conversational notice: %s", content[:60])
+            return SendResult(success=True, message_id=None)
         if not self._send_session or not self._token:
             return SendResult(success=False, error="Not connected")
         context_token = self._token_store.get(self._account_id, chat_id)
