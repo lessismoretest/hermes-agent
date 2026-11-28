@@ -204,6 +204,12 @@ import { useServerSessionSearch } from './use-server-session-search'
 const NON_SESSION_INITIAL_ROWS = 3
 const NON_SESSION_LOAD_STEP = 10
 
+// Cross-channel inbox: how many newest conversations the inbox shows before
+// asking. The window is local (both source lists are already paged), so this
+// only decides how much of the loaded set one screen reveals.
+const INBOX_INITIAL_ROWS = 30
+const INBOX_LOAD_STEP = 30
+
 // How long after connecting to warm the project tree for someone who isn't in
 // the grouped view. Long enough that the flat list — the thing actually on
 // screen — has the connection to itself first.
@@ -1562,6 +1568,40 @@ export function ChatSidebar({
   // column" while this toggle only changes how the column paints itself.
   const railScope = useStore($railScope)
   const platformScope = railScope.startsWith('platform:') ? railScope.slice('platform:'.length) : null
+
+  // ── Cross-channel inbox ────────────────────────────────────────────────────
+  // `$sessions` deliberately excludes every messaging source, and
+  // `$messagingSessions` holds nothing but them — so the union is every
+  // conversation the app knows about. Cron runs stay out (a job is not a
+  // conversation; they have their own view). Rows are keyed by pin identity so
+  // a compression-rotated lineage can't list twice, and ordered by last
+  // activity so "who spoke last" is the sort the user came here for.
+  const overviewMode = railScope === 'overview'
+
+  const inboxSessions = useMemo(() => {
+    if (!overviewMode) {
+      return []
+    }
+
+    const seen = new Set<string>()
+    const rows: SessionInfo[] = []
+
+    for (const session of [...sortedSessions, ...visibleMessagingSessions]) {
+      const key = sessionPinId(session)
+
+      if (seen.has(key) || isPinnedSession(session)) {
+        continue
+      }
+
+      seen.add(key)
+      rows.push(session)
+    }
+
+    return rows.sort((a, b) => sessionTime(b) - sessionTime(a))
+  }, [overviewMode, sortedSessions, visibleMessagingSessions, isPinnedSession])
+
+  const [inboxLimit, setInboxLimit] = useState(INBOX_INITIAL_ROWS)
+  const inboxRows = useMemo(() => inboxSessions.slice(0, inboxLimit), [inboxSessions, inboxLimit])
   // The rail is always on now: icons live in their own 48px column and the
   // list column beside it never disappears. Kept as a constant so the row
   // styling below stays a single, readable switch.
@@ -1588,6 +1628,38 @@ export function ChatSidebar({
     [messagingSessions, platformScope]
   )
 
+  // Pinned is ONE section rendered by two list modes (sessions, inbox), so the
+  // pin affordances and the cross-channel pin resolution cannot drift between
+  // them. The inbox drops the section when nothing is pinned — an empty pinned
+  // header above a full inbox reads as a bug.
+  const pinnedSection = (
+    <SidebarSessionsSection
+      activeSessionId={activeSidebarSessionId}
+      // Inbox style rides whichever view is active — pinned rows
+      // included, so one column never mixes card and inline
+      // geometry at the section boundary.
+      card={cardRows}
+      contentClassName="flex flex-col gap-px rounded-lg pb-2 pt-1"
+      dndSensors={dndSensors}
+      emptyState={<SidebarPinnedEmptyState archived={showArchived} filtered={filtersNarrow} />}
+      label={s.pinned}
+      onArchiveSession={onArchiveSession}
+      onBranchSession={onBranchSession}
+      onDeleteSession={onDeleteSession}
+      onReorderSessions={reorderPinned}
+      onResumeSession={onResumeSession}
+      onToggle={() => setSidebarPinsOpen(!pinsOpen)}
+      onTogglePin={unpinSession}
+      onToggleUnread={toggleUnread}
+      open={pinsOpen}
+      pinned
+      rootClassName="shrink-0 p-0 pb-1"
+      sessions={pinnedSessions}
+      showProfileTags={showAllProfiles}
+      sortable={pinnedSessions.length > 1}
+    />
+  )
+
   return (
     <Sidebar
       className={cn(
@@ -1608,6 +1680,22 @@ export function ChatSidebar({
         <SidebarGroup className="col-start-1 row-start-1 flex min-h-0 flex-col overflow-y-auto bg-[color-mix(in_srgb,var(--ui-base)_2.5%,transparent)] p-0 pb-2 pt-[calc(var(--titlebar-height)+0.375rem)]">
           <SidebarGroupContent>
             <SidebarMenu className="gap-px px-1.5">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  aria-label={s.overview}
+                  className={cn(
+                    'flex h-8 w-full justify-center gap-0 rounded-md border border-transparent px-0 [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background)',
+                    railScope === 'overview' &&
+                      'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background)'
+                  )}
+                  data-tour="sidebar-rail-overview"
+                  onClick={() => setRailScope('overview')}
+                  tooltip={{ children: s.overview, hidden: false }}
+                  type="button"
+                >
+                  <Codicon className="size-4 shrink-0 text-[color-mix(in_srgb,currentColor_72%,transparent)]" name="inbox" />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   aria-label={s.sessions}
@@ -1911,36 +1999,52 @@ export function ChatSidebar({
               />
             )}
 
-            {!trimmedQuery && (
+            {!trimmedQuery && (!overviewMode || pinnedSessions.length > 0) && pinnedSection}
+
+            {/* Inbox: the same conversation list every channel feeds, newest
+                first. Pins render above it (they are already cross-channel),
+                so this section is "everything else by last activity" — which
+                is exactly what the channel views show one platform at a
+                time. */}
+            {!trimmedQuery && overviewMode && (
               <SidebarSessionsSection
                 activeSessionId={activeSidebarSessionId}
-                // Inbox style rides whichever view is active — pinned rows
-                // included, so one column never mixes card and inline
-                // geometry at the section boundary.
                 card={cardRows}
-                contentClassName="flex flex-col gap-px rounded-lg pb-2 pt-1"
-                dndSensors={dndSensors}
-                emptyState={<SidebarPinnedEmptyState archived={showArchived} filtered={filtersNarrow} />}
-                label={s.pinned}
+                contentClassName="flex min-h-0 flex-1 flex-col gap-px pb-1.75"
+                emptyState={
+                  <div className="grid min-h-16 place-items-center rounded-lg px-3 text-center text-xs text-(--ui-text-tertiary)">
+                    {pinnedSessions.length > 0 ? s.allPinned : s.overviewEmpty}
+                  </div>
+                }
+                footer={
+                  inboxSessions.length > inboxRows.length ? (
+                    <SidebarLoadMoreRow
+                      loading={false}
+                      onClick={() => setInboxLimit(limit => limit + INBOX_LOAD_STEP)}
+                      step={Math.min(INBOX_LOAD_STEP, inboxSessions.length - inboxRows.length)}
+                    />
+                  ) : null
+                }
+                grouping="date"
+                label={s.overviewLatest}
                 onArchiveSession={onArchiveSession}
                 onBranchSession={onBranchSession}
                 onDeleteSession={onDeleteSession}
-                onReorderSessions={reorderPinned}
                 onResumeSession={onResumeSession}
-                onToggle={() => setSidebarPinsOpen(!pinsOpen)}
-                onTogglePin={unpinSession}
+                onToggle={() => undefined}
+                onTogglePin={pinSession}
                 onToggleUnread={toggleUnread}
-                open={pinsOpen}
-                pinned
-                rootClassName="shrink-0 p-0 pb-1"
-                sessions={pinnedSessions}
+                open
+                pinned={false}
+                preserveOrder
+                rootClassName="min-h-32 flex-1 overflow-hidden p-0"
+                sessions={inboxRows}
                 showProfileTags={showAllProfiles}
-                sortable={pinnedSessions.length > 1}
               />
             )}
 
             {!trimmedQuery && inProject && projectLoadFailed && <SidebarLoadErrorState onRetry={retryProject} />}
-            {!trimmedQuery && (
+            {!trimmedQuery && !overviewMode && (
               <SidebarSessionsSection
                 activeProjectId={activeProjectId}
                 activeSessionId={activeSidebarSessionId}

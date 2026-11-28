@@ -91,8 +91,9 @@ export const $sidebarOpen: ReadableAtom<boolean> = computed(
   states => states[CHAT_SIDEBAR_PANE_ID]?.open ?? true
 )
 
-/** Which list the middle column shows: 'sessions' (default), 'cron', or
- *  'platform:<source>' for one messaging channel. Persisted per profile. */
+/** Which list the middle column shows: 'sessions' (local/desktop recents),
+ *  'overview' (cross-channel inbox: newest conversation from every source),
+ *  'cron', or 'platform:<source>' for one messaging channel. Persisted. */
 export const $railScope = persistentAtom<string>('hermes.layout.railScope', 'sessions', {
   decode: raw => raw || 'sessions',
   encode: value => value

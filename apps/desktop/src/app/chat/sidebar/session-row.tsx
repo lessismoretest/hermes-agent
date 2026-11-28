@@ -22,11 +22,11 @@ import { middleClickHandlers } from '@/lib/middle-click'
 import { displayModelName } from '@/lib/model-status-label'
 import { sessionProjectLabel } from '@/lib/session-project-label'
 import { SESSION_ROW_AREAS } from '@/lib/session-row-slots'
-import { handoffOriginSource, sessionSourceLabel } from '@/lib/session-source'
+import { handoffOriginSource, isMessagingSource, normalizeSessionSource, sessionSourceLabel } from '@/lib/session-source'
 import { coarseElapsed } from '@/lib/time'
 import { useStoreSelector } from '@/lib/use-session-slice'
 import { cn } from '@/lib/utils'
-import { $sidebarRowMeta } from '@/store/layout'
+import { $sidebarRowMeta, $railScope } from '@/store/layout'
 import { normalizeProfileKey } from '@/store/profile'
 import { $projects } from '@/store/projects'
 import { $pullRequestsByBranch, sessionPrKey } from '@/store/pull-requests'
@@ -152,6 +152,7 @@ function SidebarSessionRowImpl({
   const { cancelPrewarm, notePointerMove, startPrewarm } = useProfilePrewarm(session.profile)
   const title = sessionTitle(session)
   const density = useStore($sessionListDensity)
+  const railScope = useStore($railScope)
   const fmt = t.sidebar
 
   const details = sessionRowDetails(session, {
@@ -525,12 +526,36 @@ function SidebarSessionRowImpl({
                 </Tip>
               ) : null
 
+            // In the cross-channel inbox the row's own source is the only cue
+            // for which app it came from — that list has no per-platform
+            // headers. Local rows stay unbadged, so a desktop chat looks the
+            // same here as it does in the sessions list.
+            const inboxSource =
+              railScope === 'overview' && isMessagingSource(session.source)
+                ? normalizeSessionSource(session.source)
+                : null
+            const inboxLabel = inboxSource ? (sessionSourceLabel(inboxSource) ?? inboxSource) : null
+
+            // A handoff origin wins: the live source is local then, and the
+            // origin is the more specific fact.
+            const originBadge =
+              handoffBadge ??
+              (inboxSource && inboxLabel ? (
+                <Tip label={inboxLabel}>
+                  <PlatformAvatar
+                    className="-mt-px size-4 shrink-0 rounded-[4px] text-[0.5rem] [&_svg]:size-2.5"
+                    platformId={inboxSource}
+                    platformName={inboxLabel}
+                  />
+                </Tip>
+              ) : null)
+
             if (!card) {
               return (
                 <>
                   {leadNode}
                   <SessionRowSlot area={SESSION_ROW_AREAS.leading} sessionId={sessionPinId(session)} />
-                  {handoffBadge}
+                  {originBadge}
                   <span className="min-w-0 flex-1 self-center">
                     {/* The row's primary action (#38072 finding 3): the title
                         is the session row's real button — the grabber and ⋯
@@ -598,7 +623,7 @@ function SidebarSessionRowImpl({
                   >
                     {context}
                   </span>
-                  {handoffBadge}
+                  {originBadge}
                   <SessionRowSlot area={SESSION_ROW_AREAS.trailing} sessionId={sessionPinId(session)} />
                   {actionsNode}
                 </div>

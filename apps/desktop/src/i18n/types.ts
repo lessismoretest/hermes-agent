@@ -2829,6 +2829,12 @@ export interface Translations extends NoticeTranslations {
     noMatch: (query: string) => string
     results: string
     pinned: string
+    /** Cross-channel inbox: newest conversations from local sessions and
+     *  every messaging platform, pins above. */
+    overview: string
+    overviewLatest: string
+    overviewEmpty: string
+    overviewHint: string
     sessions: string
     terminal: string
     files: string
