@@ -2,9 +2,10 @@ import type { FC } from 'react'
 import { Fragment, useMemo } from 'react'
 
 import { FilePathChip } from '@/components/chat/file-path-chip'
-import { splitPathText } from '@/lib/remarks/file-path-links'
+import { splitInlineLinks } from '@/lib/remarks/file-path-links'
 import { DirectiveContent } from '@/components/assistant-ui/directive-text'
 import { referenceRe } from '@/components/assistant-ui/reference-kinds'
+import { PrettyLink } from '@/lib/external-link'
 import { cn } from '@/lib/utils'
 import { useForcedTextDirection } from '@/store/text-direction'
 
@@ -171,9 +172,18 @@ const InlineSegmentView: FC<{ text: string }> = ({ text }) => {
           // Pass plain-text bits through DirectiveContent so @file:/@url: chips
           // still render. DirectiveContent already preserves whitespace.
           <Fragment key={`text-${nodeIndex}`}>
-            {splitPathText(node.text).map((segment, segmentIndex) =>
+            {splitInlineLinks(node.text).map((segment, segmentIndex) =>
               segment.kind === 'path' ? (
                 <FilePathChip key={`path-${nodeIndex}-${segmentIndex}`} path={segment.value} />
+              ) : segment.kind === 'url' ? (
+                // A link the sender typed without a scheme is still the link
+                // they meant: same chip, same brand glyph as an assistant's.
+                <PrettyLink
+                  className="wrap-anywhere"
+                  href={/^https?:\/\//i.test(segment.value) ? segment.value : `https://${segment.value}`}
+                  key={`url-${nodeIndex}-${segmentIndex}`}
+                  label={segment.value}
+                />
               ) : (
                 <DirectiveContent key={`seg-${nodeIndex}-${segmentIndex}`} text={segment.value} />
               )

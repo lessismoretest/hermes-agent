@@ -1,6 +1,6 @@
 # MyHermes
 
-本仓库是 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) 的 fork。`myhermes` 分支**只改桌面端 UI/UX**：agent、工具、网关、渠道、模型路由一行没动。
+本仓库是 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) 的 fork。`myhermes` 分支以**桌面端 UI/UX** 为主（22 个文件），另有两处 agent 修复和两个渠道适配补丁；网关、模型路由、工具集没动。逐文件清单在下面的[「和上游的差异」](#和上游的差异)。
 
 下载、装完、打开，就是下面这个样子——不需要再导入皮肤或插件。
 
@@ -10,9 +10,11 @@
 
 | 地方 | 官方 | 这里 |
 |---|---|---|
-| 侧边栏 | 单列会话列表 | **图标栏 + 列表列 + 聊天区**三栏；点图标切「会话 / 定时任务 / 某个渠道」 |
+| 侧边栏 | 单列会话列表 | **图标栏 + 列表列 + 聊天区**三栏；点图标切「收件箱 / 会话 / 定时任务 / 某个渠道」 |
+| 收件箱 | 没有 | 图标栏最上方：置顶 + 所有渠道按最近活动排一列，每行带来源渠道图标（本机会话不带） |
 | 渠道 | 混在一个列表里 | 点 Telegram 只留 Telegram 会话，点飞书只留飞书；底部条横跨两列 |
 | 新建会话 | 只在顶部工具条 | 搜索框下多一个「新建会话」，带 ⌘N |
+| 消息里的网址 | 必须带 `https://` 或 `www.` 才成链接 | 裸域名也成链接：`github.com`、`arxiv.org/abs/1706.03762`、`x.com`，并带品牌图标 |
 | 消息里的网址 | 蓝字 + 外链箭头 | 站点品牌图标（191 个域名内置）+ 品牌原色；未收录域名给通用链条图标 |
 | 消息里的路径 | 纯文本 | 灰底小块，点一下在访达里选中/打开 |
 | 侧栏分割线 | 1px 硬线 | 2.5% 底色差，跟右侧列表↔聊天之间一致 |
@@ -51,23 +53,28 @@ bash scripts/build-myhermes.sh
 
 ## 和上游的差异
 
-改动集中在桌面层，共 17 个文件：
+共 33 个文件。桌面端 22 个（界面 / 交互 / 内置外观），其余是文档、截图、两处 agent 修复、两个渠道补丁和两个脚本。
 
 | 文件 | 改了什么 |
 |---|---|
-| `apps/desktop/src/app/chat/sidebar/index.tsx` | 三栏布局、渠道过滤、新建会话按钮、底部条、分割线、图标栏 i18n |
-| `apps/desktop/src/store/layout.ts` | `$railScope`（会话 / 定时任务 / 某渠道）持久化与栏宽 |
+| `apps/desktop/src/app/chat/sidebar/index.tsx` | 三栏布局、收件箱、渠道过滤、新建会话按钮、底部条、分割线、图标栏 i18n |
+| `apps/desktop/src/app/chat/sidebar/session-row.tsx` | 收件箱里每行的来源渠道徽标 |
+| `apps/desktop/src/store/layout.ts` | `$railScope`（收件箱 / 会话 / 定时任务 / 某渠道）持久化与栏宽 |
 | `apps/desktop/src/components/pane-shell/tree/renderer/zone-header-layout.ts` | 侧栏面板 tab 与窗口控件同一行 |
 | `apps/desktop/src/lib/session-source.ts` | 会话来源归一化（渠道过滤用） |
-| `apps/desktop/src/lib/remarks/file-path-links.ts` | 路径识别、转可点标记、跳过代码与接口路径 |
+| `apps/desktop/src/lib/remarks/file-path-links.ts` | 路径识别 + 裸域名识别，转可点标记，跳过代码与接口路径 |
+| `apps/desktop/src/lib/remarks/file-path-links.test.ts` | 上面那套规则的用例（15 条） |
 | `apps/desktop/src/components/chat/file-path-chip.tsx` | 路径小块（点击 `revealPath`） |
 | `apps/desktop/src/components/assistant-ui/markdown-text.tsx` | 助手消息接入路径与网址图标 |
-| `apps/desktop/src/components/assistant-ui/thread/user-message-text.tsx` | 用户消息接入路径小块 |
+| `apps/desktop/src/components/assistant-ui/thread/user-message-text.tsx` | 用户消息接入路径小块与可点网址 |
 | `apps/desktop/src/lib/external-link.tsx` | 网址品牌图标：品牌原色 + 白底；未知域名给链条兜底 |
 | `apps/desktop/src/app/messaging/platform-icon.tsx` + `src/assets/feishu.png` | 飞书官方图标（API 图标保持上游的地球） |
+| `apps/desktop/src/i18n/{zh,en,types}.ts` | 新增文案（收件箱等） |
 | `apps/desktop/electron/default-profile-seed.ts` + `resources/default-profile/` | 首次启动铺外观 |
 | `apps/desktop/electron/main.ts`、`electron-builder.config.cjs` | 内置资源打包 |
-| `scripts/build-myhermes.sh` | 一条命令构建安装 |
+| `agent/conversation_loop.py`、`agent/turn_final_response.py` | 两处 agent 修复：magpie 中转误报 `finish_reason=tool_calls` 时不再丢弃已有文字；IM 渠道过滤 |
+| `plugins/platforms/{feishu,weixin}/adapter.py` | 渠道适配补丁（长消息、重复通知） |
+| `scripts/build-myhermes.sh`、`scripts/whatsapp-bridge/pair_code.mjs` | 一条命令构建安装；WhatsApp 链接码配对 |
 
 ## 跟上游
 

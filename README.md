@@ -16,7 +16,7 @@
   <a href="README.es.md"><img src="https://img.shields.io/badge/Lang-Español-orange?style=for-the-badge" alt="Español"></a>
 </p>
 
-> **MyHermes — 非官方 UI 分支。** 本仓 fork 自 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)，与 Nous Research 无隶属关系。相对上游只动了 **23 个文件**，全在桌面端：`apps/desktop/` 的界面与交互、内置外观（皮肤 + 两个插件）、消息里网址与路径的点击处理。agent、工具、网关、渠道、模型路由**一行没改**。
+> **MyHermes — 非官方 UI 分支。** 本仓 fork 自 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)，与 Nous Research 无隶属关系。相对上游动了 **33 个文件**：22 个桌面端（`apps/desktop/` 的界面与交互、内置外观、消息里网址与路径的识别）、5 个文档与截图、2 处 agent 修复（magpie 中转 `finish_reason` 误报、IM 渠道过滤）、2 个渠道适配补丁、2 个脚本。网关、模型路由、工具集没动。
 >
 > - 改了什么、怎么装 → **[MYHERMES.md](MYHERMES.md)**
 > - 跟上上游：`main` 是 `origin/main` 的干净镜像；`myhermes` 定期 rebase 上去，冲突面只有 `apps/desktop/` 和这段说明
